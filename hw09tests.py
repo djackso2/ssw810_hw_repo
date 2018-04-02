@@ -1,4 +1,5 @@
 import unittest
+import os
 from collections import defaultdict
 import hw09_djackson as h
 
@@ -17,63 +18,60 @@ hw09_djackson.py.
 class EduRepoTests(unittest.TestCase):
     """Class is a container for the Repo class and required inputs to that
     class (Student, Professor, Course classes and file_reader() function.
-    Test blocks will identify the test data required. All additional
-    test data will be delivered with this module."""
+    Test blocks will identify the test data set required via the path varibale.
+    All additional test data will be delivered with this module."""
 
     def test_file_reader(self):
-        """All tests require abbreviated data files in the TC1 folder."""
-        s = h.read_file(r"C:\Users\Dan\PycharmProjects\hw09\test\students.txt")
+        path = r"C:\Users\Dan\PycharmProjects\ssw810_hw_repo\test"
+        s = h.read_file(os.path.join(path, "students.txt"))
         self.assertEqual(type(s), defaultdict)
         self.assertEqual(s["10103"], ('Baldwin, C', 'SFEN'))
         self.assertEqual(s["10101"], {})
 
-        p = h.read_file(
-            r"C:\Users\Dan\PycharmProjects\hw09\test\instructors.txt")
+        p = h.read_file(os.path.join(path, "instructors.txt"))
         self.assertEqual(type(p), defaultdict)
         self.assertEqual(p["98765"], ('Einstein, A', 'SFEN'))
         self.assertEqual(p["0"], ('0', '0'))
         self.assertEqual(p["1"], ('', ''))
 
-        g = h.read_file(r"C:\Users\Dan\PycharmProjects\hw09\test\grades.txt")
+        g = h.read_file(os.path.join(path, "grades.txt"))
         self.assertEqual(type(g), list)
         self.assertEqual(g[0], ('10103', 'SSW 567', 'A', '98765'))
         self.assertEqual(g[4], ('0', '0', '0', '0'))
         with self.assertRaises(IndexError):
             print(g[5])
         with self.assertRaises(OSError):
-            h.read_file(r"C:\Users\Dan\PycharmProjects\hw09\test\nothere.txt")
+            h.read_file(os.path.join(path, "nothere.txt"))
 
     def test_repo_maker(self):
-        """Requires abbreviated data files in the TC1 folder."""
-        repo = h.Repo(r"C:\Users\Dan\PycharmProjects\hw09\test")
-        self.assertEqual(type(repo.students), list)
-        self.assertEqual(type(repo.professors), list)
+        path = r"C:\Users\Dan\PycharmProjects\ssw810_hw_repo\test"
+        repo = h.Repo(path)
+        self.assertEqual(type(repo.students), dict)
+        self.assertEqual(type(repo.professors), dict)
         self.assertEqual(type(repo.courses), dict)
 
     def test_student_list(self):
-        """Tests all student related functionality in Repo."""
-        repo = h.Repo(r"C:\Users\Dan\PycharmProjects\hw09\test")
-        s = repo.get_student("10103")
+        path = r"C:\Users\Dan\PycharmProjects\ssw810_hw_repo\test"
+        repo = h.Repo(path)
+        s = repo.students["10103"]
         self.assertEqual((s.cwid, s.name, s.courses, s.major),
                          ("10103", "Baldwin, C",
-                          {'SSW 567': 'A', 'SSW 564': 'A-'}, "SFEN"))
-        self.assertEqual(repo.get_student("444444"), None)
+                          {'SSW 564': 'A-', 'SSW 567': 'A'}, "SFEN"))
 
     def test_professor_list(self):
-        """Tests all professor related functionality in Repo."""
-        repo = h.Repo(r"C:\Users\Dan\PycharmProjects\hw09\test")
-        p = repo.get_professor("98765")
+        path = r"C:\Users\Dan\PycharmProjects\ssw810_hw_repo\test"
+        repo = h.Repo(path)
+        p = repo.professors["98765"]
         self.assertEqual((p.cwid, p.name, p.courses, p.dept),
                          ("98765", "Einstein, A",
                           {'SSW 567': 2}, "SFEN"))
-        self.assertEqual(repo.get_professor("444444"), None)
-        inc_p = repo.get_professor("1")  # tests incomplete professor record
+        inc_p = repo.professors["1"]  # tests incomplete professor record
         self.assertEqual((inc_p.cwid, inc_p.name, inc_p.courses, inc_p.dept),
                          ("1", "", {}, ""))
 
     def test_course_dict(self):
-        """Tests all course related functionality in Repo."""
-        repo = h.Repo(r"C:\Users\Dan\PycharmProjects\hw09\test")
+        path = r"C:\Users\Dan\PycharmProjects\ssw810_hw_repo\test"
+        repo = h.Repo(path)
         self.assertEqual(len(repo.courses), 3)
         c = repo.courses["SSW 567"]
         self.assertEqual((c.name, c.prof, c.dept, c.students),
