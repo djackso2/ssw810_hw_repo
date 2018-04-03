@@ -6,7 +6,7 @@ from prettytable import PrettyTable
 :author: Daniel Jackson
 26Mar18
 SSW-810-A
-Assignment HW09
+Assignment HW10
 
 Module contains classes to construct and operate on a repository (Repo) of 
 education institution data including Students, Professors, and Courses. 
