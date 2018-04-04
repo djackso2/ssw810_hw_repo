@@ -18,7 +18,7 @@ hw09_djackson.py.
 class EduRepoTests(unittest.TestCase):
     """Class is a container for the Repo class and required inputs to that
     class (Student, Professor, Course classes and file_reader() function.
-    Test blocks will identify the test data set required via the path varibale.
+    Test blocks will identify the test data set required via the path variable.
     All additional test data will be delivered with this module."""
 
     def test_file_reader(self):
@@ -81,5 +81,11 @@ class EduRepoTests(unittest.TestCase):
         self.assertEqual((c.name, c.prof, c.dept, c.students),
                          ("0", "0", "0", ['0']))
         with self.assertRaises(KeyError):
-            #  tests that the incomplete oourse did not result in a Course obj
+            #  tests that the incomplete course did not result in a Course obj
             print(repo.courses[1])
+
+    def test_majors_dict(self):
+        pass
+
+    def test_course_remainers(self):
+        pass

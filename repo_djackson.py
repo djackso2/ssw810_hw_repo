@@ -79,14 +79,20 @@ class Course:
         self.dept = dept
 
 
+class Major:
+    """
+    """
+    def __init__(self, name, required, elective):
+        self.name = name
+        self.required = required
+        self.elective = elective
+
 class Repo:
     """Class models a repository of students, professors, and courses for an
     ed. institution.
 
-    :assumption: grade data file must always end with "grades.txt" for the temp
-    g_data to be correctly populated by read_file(). Much of this class is
-    based on that assumption. If changed, pop_students(), pop_professors(),
-    pop_courses(), and make_courses_table() will need updates.
+    :assumption: grade date file will always end with "grades.txt" and majors
+    data file will always end with "majors.txt"
     """
     students = None  # list after init
     professors = None  # list after init
@@ -96,10 +102,12 @@ class Repo:
         std_data = read_file(os.path.join(directory, "students.txt"))
         prof_data = read_file(os.path.join(directory, "instructors.txt"))
         grade_data = read_file(os.path.join(directory, "grades.txt"))
+        major_data = read_file(os.path.join(directory, "majors.txt"))
 
         self.students = self.pop_students(std_data, grade_data)
         self.professors = self.pop_professors(prof_data, grade_data)
         self.courses = self.pop_courses(grade_data)
+        self.majors = self.pop_majors(major_data)
 
     def pop_students(self, s_data, g_data):
         """Transforms the s_data raw student data(with items from g_data)
@@ -146,6 +154,33 @@ class Repo:
                 list_of_courses[course].students.append(student)
         return list_of_courses
 
+    def pop_majors(self, m_data):
+        """Transforms the m_data raw majors data and returns a list of
+        Student objects.
+        """
+        list_of_majors = {}
+        for major, req, name in m_data:
+            if major not in list_of_majors.keys():
+                list_of_majors[major] = Major(major, [], [])
+            if req == 'R':
+                list_of_majors[major].required.append(name)
+            else:
+                list_of_majors[major].elective.append(name)
+        return list_of_majors
+
+    def required_remaining(self, student):
+        return sorted([course for course in self.majors[student.major].required
+                       if course not in student.courses])
+
+    def elective_remaining(self, student):
+        temp = []
+        for course in self.majors[student.major].elective:
+            if course in student.courses:
+                return None
+            else:
+                temp.append(course)
+        return sorted(temp)
+
     def print_summary_tables(self):
         """Helper to reduce complexity of PrettyTable printers"""
         print("Student Summary")
@@ -154,15 +189,21 @@ class Repo:
         print(self.make_professor_table())
         print("Course Summary")
         print(self.make_courses_table())
+        print("Majors Summary")
+        print(self.make_majors_table())
 
     def make_student_table(self):
         """Returns PrettyTable of Student objects in students."""
         pt = PrettyTable(field_names=["CWID", "Name", "Major",
-                                      "Completed Courses"])
+                                      "Completed Courses",
+                                      "Required Remaining",
+                                      "Elective Remaining"])
         pt.align = 'l'
         for _, student in self.students.items():
             pt.add_row([student.cwid, student.name,
-                        student.major, sorted(student.courses.keys(),)])
+                        student.major, sorted(student.courses.keys()),
+                        self.required_remaining(student),
+                        self.elective_remaining(student)])
         return pt
 
     def make_professor_table(self):
@@ -179,7 +220,7 @@ class Repo:
         """Returns PrettyTable of Coursse objects in courses.
 
         :note: While printed under the 'Courses Summary' header, this is
-        analagous to the HW09 'Professor Summary' table."""
+        analogous to the HW09 'Professor Summary' table."""
         pt = PrettyTable(field_names=["CWID", "Name", "Dept",
                                       "Course", "Students"])
         pt.align = 'l'
@@ -189,6 +230,15 @@ class Repo:
                         self.professors[course_data.prof].dept,
                         course_data.name,
                         len(course_data.students)])
+        return pt
+
+    def make_majors_table(self):
+        """Returns PrettyTable of Major objects in majors."""
+        pt = PrettyTable(field_names=["Dept", "Required", "Elective"])
+        pt.align = 'l'
+        for _, value in self.majors.items():
+            pt.add_row([value.name, sorted(value.required),
+                        sorted(value.elective)])
         return pt
 
 
@@ -210,6 +260,13 @@ def read_file(file):
                     if len(line_temp) == 4:
                         file_data.append((line_temp[0], line_temp[1],
                                           line_temp[2], line_temp[3]))
+            elif file.endswith("majors.txt"):
+                file_data = []
+                for line in fp:
+                    line_temp = line.strip("\n").split("\t")
+                    if len(line_temp) == 3:
+                        file_data.append((line_temp[0], line_temp[1],
+                                          line_temp[2]))
             else:
                 file_data = defaultdict(dict)
                 for line in fp:
