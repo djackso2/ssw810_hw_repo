@@ -4,23 +4,15 @@ from prettytable import PrettyTable
 
 """
 :author: Daniel Jackson
-26Mar18
+1Apr18
 SSW-810-A
 Assignment HW10
 
 Module contains classes to construct and operate on a repository (Repo) of 
-education institution data including Students, Professors, and Courses. 
+education institution data including Students, Professors, Majors, and Courses. 
 
-:note: while the Student, Professor, and Course classes are nearly identical 
-currently, they're expected to evolve in subsequent versions. If not, these 
-will be refactored into a single utility class with more abstracted attribute 
-identifiers.
-
-:note: design decision made to deviate slightly from assignment description and 
-organize the repository into three separate data stores for each as it was 
-somewhat easier to design and work with. Calls in main() print 3 tables instead
-of 2, though the courses summary table shows how these data stores can be used
-in conjunction with each other.
+:updates: corrections from feedback on HW09; added Majors functionality
+and tests
 """
 
 
@@ -31,9 +23,6 @@ class Student:
     name = str
     courses = dict of courses completed "successfully"
     major = str
-
-    :assumption: Repo class will provide methods for Course object retrieval,
-    so only need to store course name here, not full Course object.
     """
     def __init__(self, cwid, name, courses, major):
         self.cwid = cwid
@@ -49,9 +38,6 @@ class Professor:
     name = str
     courses = dict of courses taught
     major = str
-
-    :assumption: Repo class will provide methods for Course object retrieval,
-    so only need to store course name here, not full Course object.
     """
     def __init__(self, cwid, name, courses, dept):
         self.cwid = cwid
@@ -68,9 +54,6 @@ class Course:
     students = list of student IDs
     dept = str
     prof = str
-
-    :assumption: Repo class provides methods for student and professor
-    retrieval, so only need to store CWID for these, not full objects.
     """
     def __init__(self, name, students, prof, dept):
         self.name = name
@@ -80,12 +63,17 @@ class Course:
 
 
 class Major:
-    """
+    """Class models a major with name, required courses, and elective courses.
+    Expected field usage:
+    name = str
+    required = list
+    elective = list
     """
     def __init__(self, name, required, elective):
         self.name = name
         self.required = required
         self.elective = elective
+
 
 class Repo:
     """Class models a repository of students, professors, and courses for an
@@ -279,7 +267,7 @@ def read_file(file):
 
 
 def main():
-    repo = Repo(r"C:\Users\Dan\PycharmProjects\ssw810_hw_repo\normal")
+    repo = Repo(os.path.join(os.getcwd(), "normal"))
     repo.print_summary_tables()
 
 
