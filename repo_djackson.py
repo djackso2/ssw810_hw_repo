@@ -4,23 +4,15 @@ from prettytable import PrettyTable
 
 """
 :author: Daniel Jackson
-26Mar18
+1Apr18
 SSW-810-A
 Assignment HW10
 
 Module contains classes to construct and operate on a repository (Repo) of 
-education institution data including Students, Professors, and Courses. 
+education institution data including Students, Professors, Majors, and Courses. 
 
-:note: while the Student, Professor, and Course classes are nearly identical 
-currently, they're expected to evolve in subsequent versions. If not, these 
-will be refactored into a single utility class with more abstracted attribute 
-identifiers.
-
-:note: design decision made to deviate slightly from assignment description and 
-organize the repository into three separate data stores for each as it was 
-somewhat easier to design and work with. Calls in main() print 3 tables instead
-of 2, though the courses summary table shows how these data stores can be used
-in conjunction with each other.
+:updates: corrections from feedback on HW09; added Majors functionality
+and tests
 """
 
 
@@ -31,9 +23,6 @@ class Student:
     name = str
     courses = dict of courses completed "successfully"
     major = str
-
-    :assumption: Repo class will provide methods for Course object retrieval,
-    so only need to store course name here, not full Course object.
     """
     def __init__(self, cwid, name, courses, major):
         self.cwid = cwid
@@ -49,9 +38,6 @@ class Professor:
     name = str
     courses = dict of courses taught
     major = str
-
-    :assumption: Repo class will provide methods for Course object retrieval,
-    so only need to store course name here, not full Course object.
     """
     def __init__(self, cwid, name, courses, dept):
         self.cwid = cwid
@@ -68,9 +54,6 @@ class Course:
     students = list of student IDs
     dept = str
     prof = str
-
-    :assumption: Repo class provides methods for student and professor
-    retrieval, so only need to store CWID for these, not full objects.
     """
     def __init__(self, name, students, prof, dept):
         self.name = name
@@ -79,14 +62,25 @@ class Course:
         self.dept = dept
 
 
+class Major:
+    """Class models a major with name, required courses, and elective courses.
+    Expected field usage:
+    name = str
+    required = list
+    elective = list
+    """
+    def __init__(self, name, required, elective):
+        self.name = name
+        self.required = required
+        self.elective = elective
+
+
 class Repo:
     """Class models a repository of students, professors, and courses for an
     ed. institution.
 
-    :assumption: grade data file must always end with "grades.txt" for the temp
-    g_data to be correctly populated by read_file(). Much of this class is
-    based on that assumption. If changed, pop_students(), pop_professors(),
-    pop_courses(), and make_courses_table() will need updates.
+    :assumption: grade date file will always end with "grades.txt" and majors
+    data file will always end with "majors.txt"
     """
     students = None  # list after init
     professors = None  # list after init
@@ -96,55 +90,84 @@ class Repo:
         std_data = read_file(os.path.join(directory, "students.txt"))
         prof_data = read_file(os.path.join(directory, "instructors.txt"))
         grade_data = read_file(os.path.join(directory, "grades.txt"))
+        major_data = read_file(os.path.join(directory, "majors.txt"))
 
         self.students = self.pop_students(std_data, grade_data)
         self.professors = self.pop_professors(prof_data, grade_data)
         self.courses = self.pop_courses(grade_data)
+        self.majors = self.pop_majors(major_data)
 
     def pop_students(self, s_data, g_data):
         """Transforms the s_data raw student data(with items from g_data)
         and returns a list of Student objects.
         """
-        list_of_students = {}
-        for student, values in s_data.items():
-            classes = {}
-            for course_data in g_data:
-                if course_data[0] == student and \
-                        course_data[2] != '' and \
-                        course_data[2] != 'F':
-                    classes[course_data[1]] = course_data[2]
-            list_of_students[student] = Student(student, values[0],
-                                                classes, values[1])
-        return list_of_students
+        students = {cwid: Student(cwid, value[0], {}, value[1])
+                    for cwid, value in s_data.items()}
+
+        for course_data in g_data:
+            # Conditional to prevent processing grade line if student isn't in
+            # repo (corner case)
+            if course_data[0] in students.keys():
+                if course_data[2] != 'F' and course_data[2] != '':
+                    students[course_data[0]].courses[course_data[1]] = \
+                        course_data[2]
+        return students
 
     def pop_professors(self, p_data, g_data):
         """Transforms the p_data raw professor data(with items from g_data)
         and returns a list of Student objects.
         """
-        list_of_profs = {}
-        for prof, values in p_data.items():
-            course_dict = {}
-            for _, course, _, prf in g_data:
-                if prof == prf:
-                    if course not in course_dict.keys():
-                        course_dict[course] = 1
-                    else:
-                        course_dict[course] += 1
-            list_of_profs[prof] = Professor(prof, values[0],
-                                            course_dict, values[1])
-        return list_of_profs
+        professors = {cwid: Professor(cwid, value[0], {}, value[1])
+                      for cwid, value in p_data.items()}
+        for _, course, _, professor in g_data:
+            # Conditional to prevent processing grade line if student isn't in
+            # repo (corner case)
+            if professor in professors.keys():
+                if course not in professors[professor].courses.keys():
+                    professors[professor].courses[course] = 1
+                else:
+                    professors[professor].courses[course] += 1
+        return professors
 
     def pop_courses(self, g_data):
         """Transforms the g_data raw course data into a dict of Course objects
         keyed by course name and returns it."""
-        list_of_courses = {}
+        courses = {}
         for student, course, _, prof in g_data:
-            if course not in list_of_courses.keys():
-                list_of_courses[course] = Course(course, [student], prof,
-                                                 self.professors[prof].dept)
+            if course not in courses.keys():
+                courses[course] = Course(course, [student], prof,
+                                         self.professors[prof].dept)
             else:
-                list_of_courses[course].students.append(student)
-        return list_of_courses
+                courses[course].students.append(student)
+        return courses
+
+    def pop_majors(self, m_data):
+        """Transforms the m_data raw majors data and returns a list of
+        Student objects.
+        """
+        majors = {}
+        for major, req, name in m_data:
+            if major not in majors.keys():
+                majors[major] = Major(major, [], [])
+            if req == 'R':
+                majors[major].required.append(name)
+            else:
+                majors[major].elective.append(name)
+        return majors
+
+    def required_remaining(self, student):
+        return sorted([course for course in self.majors[student.major].required
+                       if course not in student.courses])
+
+    def elective_remaining(self, student):
+        temp = []
+        for course in self.majors[student.major].elective:
+            print(type(self.majors[student.major].elective))
+            if course in student.courses:
+                return None
+            else:
+                temp.append(course)
+        return sorted(temp)
 
     def print_summary_tables(self):
         """Helper to reduce complexity of PrettyTable printers"""
@@ -154,15 +177,21 @@ class Repo:
         print(self.make_professor_table())
         print("Course Summary")
         print(self.make_courses_table())
+        print("Majors Summary")
+        print(self.make_majors_table())
 
     def make_student_table(self):
         """Returns PrettyTable of Student objects in students."""
         pt = PrettyTable(field_names=["CWID", "Name", "Major",
-                                      "Completed Courses"])
+                                      "Completed Courses",
+                                      "Required Remaining",
+                                      "Elective Remaining"])
         pt.align = 'l'
-        for _, student in self.students.items():
+        for student in self.students.values():
             pt.add_row([student.cwid, student.name,
-                        student.major, sorted(student.courses.keys(),)])
+                        student.major, sorted(student.courses.keys()),
+                        self.required_remaining(student),
+                        self.elective_remaining(student)])
         return pt
 
     def make_professor_table(self):
@@ -170,7 +199,7 @@ class Repo:
         pt = PrettyTable(field_names=["CWID", "Name", "Dept",
                                       "Taught Courses"])
         pt.align = 'l'
-        for _, professor in self.professors.items():
+        for professor in self.professors.values():
             pt.add_row([professor.cwid, professor.name,
                         professor.dept, sorted(professor.courses.keys())])
         return pt
@@ -179,16 +208,25 @@ class Repo:
         """Returns PrettyTable of Coursse objects in courses.
 
         :note: While printed under the 'Courses Summary' header, this is
-        analagous to the HW09 'Professor Summary' table."""
+        analogous to the HW09 'Professor Summary' table."""
         pt = PrettyTable(field_names=["CWID", "Name", "Dept",
                                       "Course", "Students"])
         pt.align = 'l'
-        for key, course_data in self.courses.items():
+        for course_data in self.courses.values():
             pt.add_row([course_data.prof,
                         self.professors[course_data.prof].name,
                         self.professors[course_data.prof].dept,
                         course_data.name,
                         len(course_data.students)])
+        return pt
+
+    def make_majors_table(self):
+        """Returns PrettyTable of Major objects in majors."""
+        pt = PrettyTable(field_names=["Dept", "Required", "Elective"])
+        pt.align = 'l'
+        for value in self.majors.values():
+            pt.add_row([value.name, sorted(value.required),
+                        sorted(value.elective)])
         return pt
 
 
@@ -210,6 +248,13 @@ def read_file(file):
                     if len(line_temp) == 4:
                         file_data.append((line_temp[0], line_temp[1],
                                           line_temp[2], line_temp[3]))
+            elif file.endswith("majors.txt"):
+                file_data = []
+                for line in fp:
+                    line_temp = line.strip("\n").split("\t")
+                    if len(line_temp) == 3:
+                        file_data.append((line_temp[0], line_temp[1],
+                                          line_temp[2]))
             else:
                 file_data = defaultdict(dict)
                 for line in fp:
@@ -222,7 +267,7 @@ def read_file(file):
 
 
 def main():
-    repo = Repo(r"C:\Users\Dan\PycharmProjects\ssw810_hw_repo\normal")
+    repo = Repo(os.path.join(os.getcwd(), "normal"))
     repo.print_summary_tables()
 
 
