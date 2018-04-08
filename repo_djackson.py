@@ -101,60 +101,59 @@ class Repo:
         """Transforms the s_data raw student data(with items from g_data)
         and returns a list of Student objects.
         """
-        list_of_students = {}
-        for student, values in s_data.items():
-            classes = {}
-            for course_data in g_data:
-                if course_data[0] == student and \
-                        course_data[2] != '' and \
-                        course_data[2] != 'F':
-                    classes[course_data[1]] = course_data[2]
-            list_of_students[student] = Student(student, values[0],
-                                                classes, values[1])
-        return list_of_students
+        students = {cwid: Student(cwid, value[0], {}, value[1])
+                    for cwid, value in s_data.items()}
+
+        for course_data in g_data:
+            # Conditional to prevent processing grade line if student isn't in
+            # repo (corner case)
+            if course_data[0] in students.keys():
+                if course_data[2] != 'F' and course_data[2] != '':
+                    students[course_data[0]].courses[course_data[1]] = \
+                        course_data[2]
+        return students
 
     def pop_professors(self, p_data, g_data):
         """Transforms the p_data raw professor data(with items from g_data)
         and returns a list of Student objects.
         """
-        list_of_profs = {}
-        for prof, values in p_data.items():
-            course_dict = {}
-            for _, course, _, prf in g_data:
-                if prof == prf:
-                    if course not in course_dict.keys():
-                        course_dict[course] = 1
-                    else:
-                        course_dict[course] += 1
-            list_of_profs[prof] = Professor(prof, values[0],
-                                            course_dict, values[1])
-        return list_of_profs
+        professors = {cwid: Professor(cwid, value[0], {}, value[1])
+                      for cwid, value in p_data.items()}
+        for _, course, _, professor in g_data:
+            # Conditional to prevent processing grade line if student isn't in
+            # repo (corner case)
+            if professor in professors.keys():
+                if course not in professors[professor].courses.keys():
+                    professors[professor].courses[course] = 1
+                else:
+                    professors[professor].courses[course] += 1
+        return professors
 
     def pop_courses(self, g_data):
         """Transforms the g_data raw course data into a dict of Course objects
         keyed by course name and returns it."""
-        list_of_courses = {}
+        courses = {}
         for student, course, _, prof in g_data:
-            if course not in list_of_courses.keys():
-                list_of_courses[course] = Course(course, [student], prof,
-                                                 self.professors[prof].dept)
+            if course not in courses.keys():
+                courses[course] = Course(course, [student], prof,
+                                         self.professors[prof].dept)
             else:
-                list_of_courses[course].students.append(student)
-        return list_of_courses
+                courses[course].students.append(student)
+        return courses
 
     def pop_majors(self, m_data):
         """Transforms the m_data raw majors data and returns a list of
         Student objects.
         """
-        list_of_majors = {}
+        majors = {}
         for major, req, name in m_data:
-            if major not in list_of_majors.keys():
-                list_of_majors[major] = Major(major, [], [])
+            if major not in majors.keys():
+                majors[major] = Major(major, [], [])
             if req == 'R':
-                list_of_majors[major].required.append(name)
+                majors[major].required.append(name)
             else:
-                list_of_majors[major].elective.append(name)
-        return list_of_majors
+                majors[major].elective.append(name)
+        return majors
 
     def required_remaining(self, student):
         return sorted([course for course in self.majors[student.major].required
@@ -163,6 +162,7 @@ class Repo:
     def elective_remaining(self, student):
         temp = []
         for course in self.majors[student.major].elective:
+            print(type(self.majors[student.major].elective))
             if course in student.courses:
                 return None
             else:
@@ -187,7 +187,7 @@ class Repo:
                                       "Required Remaining",
                                       "Elective Remaining"])
         pt.align = 'l'
-        for _, student in self.students.items():
+        for student in self.students.values():
             pt.add_row([student.cwid, student.name,
                         student.major, sorted(student.courses.keys()),
                         self.required_remaining(student),
@@ -199,7 +199,7 @@ class Repo:
         pt = PrettyTable(field_names=["CWID", "Name", "Dept",
                                       "Taught Courses"])
         pt.align = 'l'
-        for _, professor in self.professors.items():
+        for professor in self.professors.values():
             pt.add_row([professor.cwid, professor.name,
                         professor.dept, sorted(professor.courses.keys())])
         return pt
@@ -212,7 +212,7 @@ class Repo:
         pt = PrettyTable(field_names=["CWID", "Name", "Dept",
                                       "Course", "Students"])
         pt.align = 'l'
-        for key, course_data in self.courses.items():
+        for course_data in self.courses.values():
             pt.add_row([course_data.prof,
                         self.professors[course_data.prof].name,
                         self.professors[course_data.prof].dept,
@@ -224,7 +224,7 @@ class Repo:
         """Returns PrettyTable of Major objects in majors."""
         pt = PrettyTable(field_names=["Dept", "Required", "Elective"])
         pt.align = 'l'
-        for _, value in self.majors.items():
+        for value in self.majors.values():
             pt.add_row([value.name, sorted(value.required),
                         sorted(value.elective)])
         return pt
