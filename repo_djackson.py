@@ -162,7 +162,6 @@ class Repo:
     def elective_remaining(self, student):
         temp = []
         for course in self.majors[student.major].elective:
-            print(type(self.majors[student.major].elective))
             if course in student.courses:
                 return None
             else:
